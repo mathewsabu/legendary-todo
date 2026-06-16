@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Focus Flow Todo</title>
+  <!-- SEO / Meta tags (Recommended by guidelines) -->
+  <meta name="description" content="A premium offline-first desktop Todo application with local sync capabilities.">
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+  <div id="app-layout">
+    <!-- 1. Sidebar -->
+    <aside class="sidebar" id="sidebar-panel">
+      <div class="sidebar-top">
+        <div class="logo-container">
+          <button id="sidebar-toggle-btn" class="sync-btn" title="Toggle Sidebar" style="border: none; background: transparent; padding: 4px; cursor: pointer; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          </button>
+          <span class="logo-text">FocusFlow</span>
+          <button id="theme-toggle-btn" class="sync-btn" title="Toggle Theme" style="border: none; background: transparent; padding: 4px; cursor: pointer; color: var(--text-secondary); margin-left: auto; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm);">
+            <svg id="theme-icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            <svg id="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+          </button>
+        </div>
+
+        <nav>
+          <ul class="nav-links">
+            <li>
+              <div id="nav-daily" class="nav-item active">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                <span>Daily</span>
+              </div>
+            </li>
+            <li>
+              <div id="nav-pool" class="nav-item">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                <span>All</span>
+              </div>
+            </li>
+            <li>
+              <div id="nav-history" class="nav-item">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                <span>History Archive</span>
+              </div>
+            </li>
+          </ul>
+        </nav>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="sync-status-card">
+          <div class="sync-header">
+            <div class="status-badge">
+              <div id="sync-dot" class="status-dot offline"></div>
+              <span id="sync-status-text">Local Storage</span>
+            </div>
+            <button id="sync-now-btn" class="sync-btn" style="display: none;">Sync</button>
+          </div>
+          <div id="sync-user-info" style="font-size: 11px; color: var(--text-secondary);">
+            Offline Mode
+          </div>
+        </div>
+        <button id="auth-trigger-btn" class="auth-btn" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="auth-icon"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
+          <span class="auth-btn-text">Sign In</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- 2. Main Content Wrapper -->
+    <main class="content-wrapper">
+      
+      <!-- 2A. DAILY VIEW -->
+      <section id="daily-view" class="view-section active" style="position: relative;">
+        <div class="document-editor-canvas" id="daily-editor-canvas">
+          <!-- Integrated Document Header -->
+          <div class="document-header">
+            <div class="document-header-left">
+              <h1 id="daily-date-title" class="view-title">Date</h1>
+              <span id="daily-progress-text" class="document-progress-text">0%</span>
+            </div>
+            <div class="document-controls">
+              <!-- Toggle Button for Floating Backlog Pool -->
+              <button id="toggle-pull-panel-btn" class="sync-btn" title="Toggle Backlog Overlay" style="font-weight: 500; display: flex; align-items: center; gap: 4px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                <span>Backlog Pool</span>
+              </button>
+              <button id="prev-day-btn" class="sync-btn" title="Previous Day">&lt;</button>
+              <button id="today-btn" class="sync-btn" style="font-weight: 500;">Today</button>
+              <button id="next-day-btn" class="sync-btn" title="Next Day">&gt;</button>
+            </div>
+          </div>
+
+          <!-- Subtle Horizontal Progress Line -->
+          <div class="document-progress-track">
+            <div id="daily-progress-bar" class="document-progress-bar"></div>
+          </div>
+
+          <div id="daily-todo-list" class="editor-lines-container">
+            <!-- Rendered dynamically as list of lines -->
+          </div>
+          <div class="editor-line new-line-prompt">
+            <span class="editor-bullet">•</span>
+            <input type="text" id="daily-editor-input" class="editor-input" placeholder="Type a task and press Enter..." autocomplete="off">
+          </div>
+        </div>
+
+        <!-- Floating Backlog Pool Overlay (Hovering above the document) -->
+        <div class="quick-pull-card floating-overlay" id="quick-pull-panel">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <h3 style="font-size: 13px; font-weight: 600; margin: 0;">Backlog Pool</h3>
+            <button id="close-pull-panel-btn" style="background: none; border: none; font-size: 16px; cursor: pointer; color: var(--text-muted);">&times;</button>
+          </div>
+          <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">Click + to pull task into today</p>
+          <div id="quick-pull-list" class="pull-list">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+      </section>
+
+      <!-- 2B. ALL TASKS VIEW -->
+      <section id="pool-view" class="view-section">
+        <div class="view-header">
+          <div>
+            <h1 class="view-title">All Tasks</h1>
+            <p class="view-subtitle">The master container of all your tasks and backlog ideas</p>
+          </div>
+        </div>
+
+        <div class="filter-bar">
+          <input type="text" id="pool-search-input" class="search-field" placeholder="Search tasks by title...">
+          
+          <div class="filter-group">
+            <span class="filter-label">Status:</span>
+            <select id="pool-status-select" class="filter-select">
+              <option value="all">All Items</option>
+              <option value="active" selected>Active Backlog</option>
+              <option value="completed">Completed Items</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <span class="filter-label">Created Date:</span>
+            <input type="date" id="pool-created-start" class="date-filter-input" placeholder="Start">
+            <span style="color: var(--text-muted);">to</span>
+            <input type="date" id="pool-created-end" class="date-filter-input" placeholder="End">
+          </div>
+
+          <div class="filter-group">
+            <span class="filter-label">Completed Date:</span>
+            <input type="date" id="pool-completed-start" class="date-filter-input" placeholder="Start">
+            <span style="color: var(--text-muted);">to</span>
+            <input type="date" id="pool-completed-end" class="date-filter-input" placeholder="End">
+          </div>
+        </div>
+
+        <form id="pool-add-form" class="quick-add-form">
+          <input type="text" id="pool-add-input" class="quick-add-input" placeholder="Create a new task..." autocomplete="off">
+          <button type="submit" class="quick-add-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>Create</span>
+          </button>
+        </form>
+
+        <div id="pool-todo-list" class="todos-container">
+          <!-- Rendered dynamically -->
+        </div>
+      </section>
+
+      <!-- 2C. HISTORY VIEW -->
+      <section id="history-view" class="view-section">
+        <div class="view-header">
+          <div>
+            <h1 class="view-title">History Archive</h1>
+            <p class="view-subtitle">Review and inspect what todos you prioritized and finished in the past</p>
+          </div>
+        </div>
+
+        <div class="archive-layout">
+          <div class="calendar-card">
+            <div class="calendar-header">
+              <button id="cal-prev-month" class="sync-btn">&lt;</button>
+              <h3 id="calendar-month-year">June 2026</h3>
+              <button id="cal-next-month" class="sync-btn">&gt;</button>
+            </div>
+            <div class="calendar-grid">
+              <span class="cal-day-label">Su</span>
+              <span class="cal-day-label">Mo</span>
+              <span class="cal-day-label">Tu</span>
+              <span class="cal-day-label">We</span>
+              <span class="cal-day-label">Th</span>
+              <span class="cal-day-label">Fr</span>
+              <span class="cal-day-label">Sa</span>
+            </div>
+            <div id="calendar-dates" class="calendar-grid" style="margin-top: 5px;">
+              <!-- Calendar dates generated dynamically -->
+            </div>
+          </div>
+
+          <div class="history-focus-panel">
+            <div class="progress-card">
+              <h3 id="history-date-focus-title" style="margin-bottom: 8px;">History: Select Date</h3>
+              <p id="history-date-focus-subtitle" style="font-size: 13px; color: var(--text-secondary);">Select a date on the calendar to see that day's todo list.</p>
+            </div>
+
+            <div id="history-todo-list" class="todos-container" style="margin-top: 20px;">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- 3. Slide-out Details Drawer (Todo notes & details) -->
+    <div id="details-drawer" class="details-drawer">
+      <div class="drawer-header" style="justify-content: space-between;">
+        <div class="drawer-tabs">
+          <button id="tab-btn-editor" class="drawer-tab active">Editor</button>
+          <button id="tab-btn-logs" class="drawer-tab">Logs</button>
+        </div>
+        <button id="drawer-close" class="drawer-close-btn">&times;</button>
+      </div>
+      <div class="drawer-content">
+        <!-- Editor Section -->
+        <div id="drawer-editor-section" class="drawer-tab-section active">
+          <input type="text" id="drawer-todo-title" class="drawer-title-input" placeholder="Task Title">
+          <textarea id="drawer-notes" class="notes-editor" placeholder="Write document details, subtasks, or markdown here... (autosaved)"></textarea>
+        </div>
+        
+        <!-- Logs Section -->
+        <div id="drawer-logs-section" class="drawer-tab-section">
+          <div class="drawer-section-title">Status Details</div>
+          <div id="drawer-status-badge" class="todo-meta-tags" style="margin-bottom: 20px;">
+            <!-- Badges like Completed, Created, etc. -->
+          </div>
+          
+          <div class="drawer-section-title">Activity Logger</div>
+          <div id="drawer-logs" class="activity-log-list">
+            <!-- Dynamically populated chronological logs -->
+          </div>
+        </div>
+      </div>
+      <div class="drawer-footer" style="display: flex; flex-direction: column; gap: 8px;">
+        <button id="drawer-unassign-btn" class="auth-btn" style="display: none;">Unassign from Day</button>
+        <button id="drawer-delete-btn" class="delete-btn">Delete Todo</button>
+      </div>
+    </div>
+
+    <!-- 4. Daily Setup Modal Prompt -->
+    <div id="daily-setup-modal" class="modal-overlay">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <h2>Start Your Focus Flow</h2>
+            <p class="setup-subtitle" id="setup-date-subtitle">Planning for YYYY-MM-DD</p>
+          </div>
+        </div>
+        <div class="modal-body">
+          <div class="setup-grid">
+            <div class="setup-panel">
+              <div class="setup-panel-title">Worked on Yesterday</div>
+              <div id="setup-yesterday-list" class="setup-todo-list">
+                <!-- Yesterday's active or finished items -->
+              </div>
+            </div>
+            <div class="setup-panel">
+              <div class="setup-panel-title">All Backlog</div>
+              <div id="setup-pool-list" class="setup-todo-list">
+                <!-- Backlog items -->
+              </div>
+            </div>
+          </div>
+          <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">
+            <strong>Pro Tip:</strong> Add a quick task to start immediately:
+          </div>
+          <input type="text" id="setup-quick-add" class="quick-add-input" placeholder="Type a task and hit Enter to add to today..." style="margin-bottom: 10px; width: 100%;">
+          <div id="setup-added-tasks" class="todos-container" style="max-height: 120px; overflow-y: auto;">
+            <!-- Items added during setup dialog -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="setup-submit-btn" class="auth-btn" style="width: auto; padding: 12px 30px;">Start My Day</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. User Sync Authentication Modal -->
+    <div id="auth-modal" class="modal-overlay">
+      <div class="modal-content" style="max-width: 420px;">
+        <div class="modal-header">
+          <h2 id="auth-modal-title">Sign In to Cloud Sync</h2>
+          <button id="auth-modal-close" class="drawer-close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="auth-form">
+            <div class="auth-input-group">
+              <label class="auth-label" for="auth-email">Username or Email</label>
+              <input type="text" id="auth-email" class="auth-input" required placeholder="Enter username">
+            </div>
+            <div class="auth-input-group">
+              <label class="auth-label" for="auth-password">Password</label>
+              <input type="password" id="auth-password" class="auth-input" required placeholder="••••••••">
+            </div>
+            <button type="submit" id="auth-submit-btn" class="auth-btn" style="margin-top: 10px;">Login</button>
+          </form>
+          <div id="auth-error" class="auth-error-msg">Error details</div>
+          <div id="auth-success" class="auth-success-msg">Success!</div>
+          <p class="auth-switch-prompt">
+            Don't have an account? <span id="auth-switch-toggle" class="auth-switch-link">Register here</span>
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bootstrapping renderer JS modules -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
