@@ -67,7 +67,6 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       # -----------------------------------------------------------------
       # PHASE 1: PLANNING MODE (/plan or /fix)
