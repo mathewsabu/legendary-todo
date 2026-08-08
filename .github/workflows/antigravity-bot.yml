@@ -62,40 +62,52 @@ jobs:
           echo "$HOME/.antigravity/bin" >> $GITHUB_PATH
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: Configure Antigravity API Credentials
+      - name: Configure Antigravity Auth & Credentials
         env:
-          ANTIGRAVITY_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}
+          ANTIGRAVITY_AUTH: ${{ secrets.ANTIGRAVITY_API_KEY }}
         run: |
-          KEY="${ANTIGRAVITY_API_KEY}"
+          KEY="${ANTIGRAVITY_AUTH}"
           
           mkdir -p ~/.gemini/antigravity-cli
           mkdir -p ~/.antigravity
           mkdir -p ~/.config/antigravity
           mkdir -p ~/.config/gemini
 
-          cat <<EOF > ~/.gemini/antigravity-cli/settings.json
-          {
-            "apiKey": "${KEY}",
-            "api_key": "${KEY}",
-            "geminiApiKey": "${KEY}",
-            "antigravityApiKey": "${KEY}"
-          }
-          EOF
-          cp ~/.gemini/antigravity-cli/settings.json ~/.antigravity/settings.json
-          cp ~/.gemini/antigravity-cli/settings.json ~/.config/antigravity/settings.json
+          if [[ "$KEY" =~ ^\{ ]]; then
+            echo "Detected JSON auth configuration. Writing to config files..."
+            echo "$KEY" > ~/.gemini/antigravity-cli/auth.json
+            echo "$KEY" > ~/.gemini/antigravity-cli/settings.json
+          elif [[ "$KEY" =~ ^ya29 || "$KEY" =~ ^1// ]]; then
+            echo "Detected OAuth access/refresh token string. Writing to auth.json..."
+            cat <<EOF > ~/.gemini/antigravity-cli/auth.json
+            {
+              "access_token": "${KEY}",
+              "refresh_token": "${KEY}",
+              "token_type": "Bearer"
+            }
+            EOF
+          else
+            echo "Detected API Key / Auth Code string."
+            cat <<EOF > ~/.gemini/antigravity-cli/settings.json
+            {
+              "apiKey": "${KEY}",
+              "api_key": "${KEY}",
+              "geminiApiKey": "${KEY}",
+              "antigravityApiKey": "${KEY}"
+            }
+            EOF
+            cat <<EOF > ~/.gemini/antigravity-cli/auth.json
+            {
+              "access_token": "${KEY}",
+              "refresh_token": "${KEY}",
+              "token_type": "Bearer",
+              "api_key": "${KEY}"
+            }
+            EOF
+          fi
 
-          cat <<EOF > ~/.gemini/antigravity-cli/auth.json
-          {
-            "access_token": "${KEY}",
-            "token_type": "Bearer",
-            "api_key": "${KEY}"
-          }
-          EOF
-          cp ~/.gemini/antigravity-cli/auth.json ~/.antigravity/auth.json
-          cp ~/.gemini/antigravity-cli/auth.json ~/.config/antigravity/auth.json
-          cp ~/.gemini/antigravity-cli/auth.json ~/.gemini/antigravity-cli/credentials.json
-          cp ~/.gemini/antigravity-cli/auth.json ~/.antigravity/credentials.json
-
+          cp ~/.gemini/antigravity-cli/* ~/.antigravity/ 2>/dev/null || true
+          cp ~/.gemini/antigravity-cli/* ~/.config/antigravity/ 2>/dev/null || true
           chmod 600 ~/.gemini/antigravity-cli/* ~/.antigravity/* ~/.config/antigravity/* 2>/dev/null || true
 
       # -----------------------------------------------------------------
