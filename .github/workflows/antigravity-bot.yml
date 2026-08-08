@@ -72,15 +72,23 @@ jobs:
       - name: Link GCP Credentials to Antigravity CLI
         run: |
           mkdir -p ~/.gemini/antigravity-cli ~/.antigravity ~/.config/antigravity
-          if [ -n "$GOOGLE_APPLICATION_CREDENTIALS" ] && [ -f "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
-            echo "Linking GCP ADC credentials ($GOOGLE_APPLICATION_CREDENTIALS) to Antigravity auth config..."
+          
+          # Mint GCP Access Token from Workload Identity Federation ADC
+          TOKEN=$(gcloud auth print-access-token 2>/dev/null || echo "")
+          
+          if [ -n "$TOKEN" ]; then
+            echo "✅ Successfully generated GCP Access Token from Workload Identity Federation."
+            echo "{\"access_token\": \"${TOKEN}\", \"token_type\": \"Bearer\"}" > ~/.gemini/antigravity-cli/auth.json
+            cp ~/.gemini/antigravity-cli/auth.json ~/.antigravity/auth.json
+            cp ~/.gemini/antigravity-cli/auth.json ~/.config/antigravity/auth.json
+          elif [ -n "$GOOGLE_APPLICATION_CREDENTIALS" ] && [ -f "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+            echo "Linking raw GCP ADC credentials file..."
             cp "$GOOGLE_APPLICATION_CREDENTIALS" ~/.gemini/antigravity-cli/auth.json
             cp "$GOOGLE_APPLICATION_CREDENTIALS" ~/.antigravity/auth.json
             cp "$GOOGLE_APPLICATION_CREDENTIALS" ~/.config/antigravity/auth.json
-            echo "{\"authProvider\": \"gcp\", \"credentialsFile\": \"$GOOGLE_APPLICATION_CREDENTIALS\"}" > ~/.gemini/antigravity-cli/settings.json
-            cp ~/.gemini/antigravity-cli/settings.json ~/.antigravity/settings.json
-            chmod 600 ~/.gemini/antigravity-cli/* ~/.antigravity/* 2>/dev/null || true
           fi
+          
+          chmod 600 ~/.gemini/antigravity-cli/* ~/.antigravity/* 2>/dev/null || true
 
       # -----------------------------------------------------------------
       # PHASE 1: PLANNING MODE (/plan or /fix)
