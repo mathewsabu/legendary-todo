@@ -48,14 +48,13 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install Antigravity CLI (agy)
+      - name: Install Antigravity CLI
         run: |
-          pip install google-antigravity
+          python3 -m pip install --upgrade google-antigravity
           curl -fsSL https://antigravity.google/install.sh | bash || true
           echo "$HOME/.local/bin" >> $GITHUB_PATH
           echo "$HOME/.antigravity/bin" >> $GITHUB_PATH
           echo "$(python3 -m site --user-base)/bin" >> $GITHUB_PATH
-          echo "$(dirname $(which python3))" >> $GITHUB_PATH
 
       - name: Configure Git & Create Branch
         id: branch
@@ -88,13 +87,20 @@ jobs:
           2. Implement the required bug fixes or feature changes.
           3. Ensure all changes strictly maintain project quality standards."
 
-          if command -v agy &> /dev/null; then
-            agy run --prompt "$PROMPT" --non-interactive
-          elif command -v antigravity &> /dev/null; then
-            antigravity run --prompt "$PROMPT" --non-interactive
-          elif [ -f "$HOME/.antigravity/bin/agy" ]; then
-            $HOME/.antigravity/bin/agy run --prompt "$PROMPT" --non-interactive
+          AGY_BIN=""
+          if [ -x "$HOME/.antigravity/bin/agy" ]; then
+            AGY_BIN="$HOME/.antigravity/bin/agy"
+          elif command -v agy &>/dev/null; then
+            AGY_BIN="$(command -v agy)"
+          elif command -v antigravity &>/dev/null; then
+            AGY_BIN="$(command -v antigravity)"
+          fi
+
+          if [ -n "$AGY_BIN" ]; then
+            echo "Executing Antigravity CLI via binary: $AGY_BIN"
+            "$AGY_BIN" run --prompt "$PROMPT" --non-interactive
           else
+            echo "Executing Antigravity CLI via Python module"
             python3 -m google.antigravity run --prompt "$PROMPT" --non-interactive
           fi
 
