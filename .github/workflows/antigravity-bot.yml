@@ -43,9 +43,22 @@ jobs:
         run: |
           npm ci || npm install
 
+      - name: Cache Antigravity CLI
+        id: cache-antigravity
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.antigravity
+            ~/.local/bin
+          key: ${{ runner.os }}-antigravity-cli-v1
+
       - name: Install Antigravity CLI
+        if: steps.cache-antigravity.outputs.cache-hit != 'true'
         run: |
           curl -fsSL https://antigravity.google/cli/install.sh | bash
+
+      - name: Add Antigravity to PATH
+        run: |
           echo "$HOME/.antigravity/bin" >> $GITHUB_PATH
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
@@ -65,10 +78,12 @@ jobs:
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
           COMMENT_BODY: ${{ github.event.comment.body }}
-          TERM: dumb
+          COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+          TERM: xterm-256color
           CI: 'true'
+          PYTHONUNBUFFERED: '1'
         run: |
-          PROMPT="Resolve GitHub Issue #${ISSUE_NUM}: ${ISSUE_TITLE}
+          export AGY_PROMPT="Resolve GitHub Issue #${ISSUE_NUM}: ${ISSUE_TITLE}
 
           Issue Description:
           ${ISSUE_BODY}
@@ -81,7 +96,13 @@ jobs:
           2. Implement the required bug fixes or feature changes.
           3. Ensure all changes strictly maintain project quality standards."
 
-          script -q -e -c "agy run --prompt \"$PROMPT\" --non-interactive" /dev/null
+          python3 -c '
+          import pty, os, sys
+          prompt = os.environ.get("AGY_PROMPT", "")
+          cmd = ["agy", "run", "--prompt", prompt, "--non-interactive"]
+          status = pty.spawn(cmd)
+          sys.exit(os.WEXITSTATUS(status) if os.WIFEXITED(status) else 1)
+          '
 
       - name: Run Tests & Verification
         run: |
