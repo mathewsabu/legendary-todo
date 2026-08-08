@@ -66,18 +66,37 @@ jobs:
         env:
           ANTIGRAVITY_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}
         run: |
+          KEY="${ANTIGRAVITY_API_KEY}"
+          
           mkdir -p ~/.gemini/antigravity-cli
           mkdir -p ~/.antigravity
+          mkdir -p ~/.config/antigravity
+          mkdir -p ~/.config/gemini
+
           cat <<EOF > ~/.gemini/antigravity-cli/settings.json
           {
-            "apiKey": "${ANTIGRAVITY_API_KEY}"
+            "apiKey": "${KEY}",
+            "api_key": "${KEY}",
+            "geminiApiKey": "${KEY}",
+            "antigravityApiKey": "${KEY}"
           }
           EOF
-          cat <<EOF > ~/.antigravity/settings.json
+          cp ~/.gemini/antigravity-cli/settings.json ~/.antigravity/settings.json
+          cp ~/.gemini/antigravity-cli/settings.json ~/.config/antigravity/settings.json
+
+          cat <<EOF > ~/.gemini/antigravity-cli/auth.json
           {
-            "apiKey": "${ANTIGRAVITY_API_KEY}"
+            "access_token": "${KEY}",
+            "token_type": "Bearer",
+            "api_key": "${KEY}"
           }
           EOF
+          cp ~/.gemini/antigravity-cli/auth.json ~/.antigravity/auth.json
+          cp ~/.gemini/antigravity-cli/auth.json ~/.config/antigravity/auth.json
+          cp ~/.gemini/antigravity-cli/auth.json ~/.gemini/antigravity-cli/credentials.json
+          cp ~/.gemini/antigravity-cli/auth.json ~/.antigravity/credentials.json
+
+          chmod 600 ~/.gemini/antigravity-cli/* ~/.antigravity/* ~/.config/antigravity/* 2>/dev/null || true
 
       # -----------------------------------------------------------------
       # PHASE 1: PLANNING MODE (/plan or /fix)
@@ -87,6 +106,8 @@ jobs:
         env:
           ANTIGRAVITY_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}
+          VERTEX_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}
           ISSUE_NUM: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
@@ -186,6 +207,8 @@ jobs:
         env:
           ANTIGRAVITY_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}
+          VERTEX_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}
           ISSUE_NUM: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
