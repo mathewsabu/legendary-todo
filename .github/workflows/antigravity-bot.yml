@@ -62,53 +62,12 @@ jobs:
           echo "$HOME/.antigravity/bin" >> $GITHUB_PATH
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: Configure Antigravity Auth & Credentials
+      - name: Authenticate Antigravity CLI with OAuth Code
         env:
-          ANTIGRAVITY_AUTH: ${{ secrets.ANTIGRAVITY_API_KEY }}
+          AUTH_CODE: ${{ secrets.ANTIGRAVITY_API_KEY }}
         run: |
-          KEY="${ANTIGRAVITY_AUTH}"
-          
-          mkdir -p ~/.gemini/antigravity-cli
-          mkdir -p ~/.antigravity
-          mkdir -p ~/.config/antigravity
-          mkdir -p ~/.config/gemini
-
-          if [[ "$KEY" =~ ^\{ ]]; then
-            echo "Detected JSON auth configuration. Writing to config files..."
-            echo "$KEY" > ~/.gemini/antigravity-cli/auth.json
-            echo "$KEY" > ~/.gemini/antigravity-cli/settings.json
-          elif [[ "$KEY" =~ ^ya29 || "$KEY" =~ ^1// ]]; then
-            echo "Detected OAuth access/refresh token string. Writing to auth.json..."
-            cat <<EOF > ~/.gemini/antigravity-cli/auth.json
-            {
-              "access_token": "${KEY}",
-              "refresh_token": "${KEY}",
-              "token_type": "Bearer"
-            }
-            EOF
-          else
-            echo "Detected API Key / Auth Code string."
-            cat <<EOF > ~/.gemini/antigravity-cli/settings.json
-            {
-              "apiKey": "${KEY}",
-              "api_key": "${KEY}",
-              "geminiApiKey": "${KEY}",
-              "antigravityApiKey": "${KEY}"
-            }
-            EOF
-            cat <<EOF > ~/.gemini/antigravity-cli/auth.json
-            {
-              "access_token": "${KEY}",
-              "refresh_token": "${KEY}",
-              "token_type": "Bearer",
-              "api_key": "${KEY}"
-            }
-            EOF
-          fi
-
-          cp ~/.gemini/antigravity-cli/* ~/.antigravity/ 2>/dev/null || true
-          cp ~/.gemini/antigravity-cli/* ~/.config/antigravity/ 2>/dev/null || true
-          chmod 600 ~/.gemini/antigravity-cli/* ~/.antigravity/* ~/.config/antigravity/* 2>/dev/null || true
+          echo "Authenticating Antigravity CLI using OAuth authorization code..."
+          agy auth login --code "$AUTH_CODE" || echo "$AUTH_CODE" | agy auth login || true
 
       # -----------------------------------------------------------------
       # PHASE 1: PLANNING MODE (/plan or /fix)
