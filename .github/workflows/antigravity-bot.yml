@@ -51,6 +51,8 @@ jobs:
       - name: Install Antigravity CLI (agy)
         run: |
           pip install google-antigravity
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          echo "$(python3 -m site --user-base)/bin" >> $GITHUB_PATH
 
       - name: Configure Git & Create Branch
         id: branch
@@ -83,7 +85,11 @@ jobs:
           2. Implement the required bug fixes or feature changes.
           3. Ensure all changes strictly maintain project quality standards."
 
-          agy run --prompt "$PROMPT" --non-interactive
+          if command -v agy &> /dev/null; then
+            agy run --prompt "$PROMPT" --non-interactive
+          else
+            python3 -m google.antigravity run --prompt "$PROMPT" --non-interactive
+          fi
 
       - name: Run Tests & Verification
         run: |
