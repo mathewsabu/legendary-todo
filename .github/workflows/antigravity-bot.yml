@@ -65,7 +65,8 @@ jobs:
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
           COMMENT_BODY: ${{ github.event.comment.body }}
-          COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+          TERM: dumb
+          CI: 'true'
         run: |
           PROMPT="Resolve GitHub Issue #${ISSUE_NUM}: ${ISSUE_TITLE}
 
@@ -80,7 +81,7 @@ jobs:
           2. Implement the required bug fixes or feature changes.
           3. Ensure all changes strictly maintain project quality standards."
 
-          agy run --prompt "$PROMPT" --non-interactive
+          script -q -e -c "agy run --prompt \"$PROMPT\" --non-interactive" /dev/null
 
       - name: Run Tests & Verification
         run: |
