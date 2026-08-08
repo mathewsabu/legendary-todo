@@ -97,11 +97,15 @@ jobs:
           3. Ensure all changes strictly maintain project quality standards."
 
           python3 -c '
-          import pty, os, sys
+          import subprocess, os, sys
           prompt = os.environ.get("AGY_PROMPT", "")
           cmd = ["agy", "run", "--prompt", prompt, "--non-interactive"]
-          status = pty.spawn(cmd)
-          sys.exit(os.WEXITSTATUS(status) if os.WIFEXITED(status) else 1)
+          print("🚀 Invoking Antigravity CLI...", flush=True)
+          proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+          for line in proc.stdout:
+              print(line, end="", flush=True)
+          proc.wait()
+          sys.exit(proc.returncode)
           '
 
       - name: Run Tests & Verification
