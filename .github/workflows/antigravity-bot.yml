@@ -1,0 +1,121 @@
+name: Antigravity Issue Resolver
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  antigravity-bot:
+    name: Execute Antigravity CLI & Raise PR
+    # Trigger conditions:
+    # 1. Comment must be on an Issue (not an existing PR)
+    # 2. Comment must contain keyword '/antigravity' or '/fix'
+    # 3. Comment author must be an authorized repository collaborator/member or specific user
+    if: >-
+      !github.event.issue.pull_request &&
+      (startsWith(github.event.comment.body, '/antigravity') || startsWith(github.event.comment.body, '/fix')) &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: React to Comment (Acknowledge)
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ github.event.comment.id }}
+          reactions: eyes
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Project Dependencies
+        run: |
+          npm ci || npm install
+
+      - name: Install Antigravity CLI
+        run: |
+          npm install -g @google/antigravity-cli
+
+      - name: Configure Git & Create Branch
+        id: branch
+        run: |
+          BRANCH_NAME="antigravity/issue-${{ github.event.issue.number }}-${{ github.run_id }}"
+          git config user.name "antigravity-bot[bot]"
+          git config user.email "antigravity-bot[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH_NAME"
+          echo "name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+      - name: Invoke Antigravity CLI
+        env:
+          ANTIGRAVITY_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}
+          ISSUE_NUM: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+        run: |
+          PROMPT="Resolve GitHub Issue #${ISSUE_NUM}: ${ISSUE_TITLE}
+
+          Issue Description:
+          ${ISSUE_BODY}
+
+          User Instructions (from @${COMMENT_AUTHOR}):
+          ${COMMENT_BODY}
+
+          Tasks:
+          1. Inspect the codebase and locate relevant files.
+          2. Implement the required bug fixes or feature changes.
+          3. Ensure all changes strictly maintain project quality standards."
+
+          agy run --prompt "$PROMPT" --non-interactive
+
+      - name: Run Tests & Verification
+        run: |
+          if grep -q '"test":' package.json; then
+            npm test
+          else
+            echo "No test script found, skipping tests."
+          fi
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ steps.branch.outputs.branch_name }}
+          title: "fix: resolution for Issue #${{ github.event.issue.number }} (${{ github.event.issue.title }})"
+          body: |
+            ## 🤖 Antigravity Automated Pull Request
+
+            Resolves #${{ github.event.issue.number }}
+
+            ### Trigger Context
+            - **Triggered by:** @${{ github.event.comment.user.login }}
+            - **Instruction:**
+            > ${{ github.event.comment.body }}
+
+            ---
+            *Generated automatically by Antigravity CLI (`agy`). Please review and test before merging.*
+          commit-message: "fix: automated resolution for issue #${{ github.event.issue.number }}"
+          labels: |
+            automated-pr
+            antigravity
+          draft: false
+
+      - name: Confirm Execution in Issue Comment
+        if: success()
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: "✅ **Antigravity CLI** has finished implementing the changes and created a new Pull Request for review."
+          reactions: rocket
