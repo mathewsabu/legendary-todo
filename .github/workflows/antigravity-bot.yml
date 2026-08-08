@@ -96,8 +96,8 @@ jobs:
             echo "✅ ANTIGRAVITY_API_KEY secret is set (length: ${#ANTIGRAVITY_API_KEY})"
           fi
           
-          echo "Testing direct version check:"
-          agy --version || antigravity --version || echo "Version check failed"
+          echo "Testing agy --help CLI options:"
+          agy --help || true
 
           export AGY_PROMPT="Resolve GitHub Issue #${ISSUE_NUM}: ${ISSUE_TITLE}
 
@@ -115,15 +115,15 @@ jobs:
           echo "🚀 Launching Antigravity Execution Runner..."
           
           python3 -c '
-          import os, pty, subprocess, sys, select, time
+          import os, pty, subprocess, sys, select
           
           prompt = os.environ.get("AGY_PROMPT", "")
-          cmd = ["agy", "run", "--prompt", prompt, "--non-interactive"]
-          print(f"Executing binary command: {cmd}", flush=True)
+          cmd = ["agy", "--prompt", prompt, "--non-interactive", "--yes"]
+          print(f"Executing command: {cmd}", flush=True)
           
           master, slave = pty.openpty()
           try:
-              proc = subprocess.Popen(cmd, stdin=slave, stdout=slave, stderr=slave, close_fds=True)
+              proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=slave, stderr=slave, close_fds=True)
               os.close(slave)
               
               while True:
