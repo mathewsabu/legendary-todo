@@ -1,4 +1,4 @@
-name: Antigravity Issue Resolver
+name: Antigravity Interactive Issue Resolver
 
 on:
   issue_comment:
@@ -6,14 +6,14 @@ on:
 
 jobs:
   antigravity-bot:
-    name: Execute Antigravity CLI & Raise PR
+    name: Antigravity Plan & Execute Bot
     # Trigger conditions:
     # 1. Comment must be on an Issue (not an existing PR)
-    # 2. Comment must contain keyword '/antigravity' or '/fix'
-    # 3. Comment author must be an authorized repository collaborator/member or specific user
+    # 2. Comment must contain keyword '/plan', '/fix', '/antigravity', or '/approve'
+    # 3. Comment author must be an authorized collaborator/member
     if: >-
       !github.event.issue.pull_request &&
-      (startsWith(github.event.comment.body, '/antigravity') || startsWith(github.event.comment.body, '/fix')) &&
+      (startsWith(github.event.comment.body, '/plan') || startsWith(github.event.comment.body, '/fix') || startsWith(github.event.comment.body, '/antigravity') || startsWith(github.event.comment.body, '/approve')) &&
       contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
     runs-on: ubuntu-latest
     permissions:
@@ -62,16 +62,11 @@ jobs:
           echo "$HOME/.antigravity/bin" >> $GITHUB_PATH
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: Configure Git & Create Branch
-        id: branch
-        run: |
-          BRANCH_NAME="antigravity/issue-${{ github.event.issue.number }}-${{ github.run_id }}"
-          git config user.name "antigravity-bot[bot]"
-          git config user.email "antigravity-bot[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH_NAME"
-          echo "name=$BRANCH_NAME" >> $GITHUB_OUTPUT
-
-      - name: Invoke Antigravity CLI
+      # -----------------------------------------------------------------
+      # PHASE 1: PLANNING MODE (/plan or /fix)
+      # -----------------------------------------------------------------
+      - name: Generate Implementation Plan
+        if: "!startsWith(github.event.comment.body, '/approve')"
         env:
           ANTIGRAVITY_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}
           ISSUE_NUM: ${{ github.event.issue.number }}
@@ -81,89 +76,144 @@ jobs:
           COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
           TERM: xterm-256color
           CI: 'true'
-          PYTHONUNBUFFERED: '1'
         run: |
-          echo "=== 🔍 ANTIGRAVITY DEBUG DIAGNOSTICS ==="
-          echo "PATH: $PATH"
-          echo "Checking CLI binary locations:"
-          which agy || echo "agy not in PATH"
-          which antigravity || echo "antigravity not in PATH"
-          find $HOME -name "agy" -o -name "antigravity" 2>/dev/null || echo "No agy binary found in HOME"
-          
-          if [ -z "$ANTIGRAVITY_API_KEY" ]; then
-            echo "⚠️ WARNING: ANTIGRAVITY_API_KEY secret is EMPTY or NOT SET!"
-          else
-            echo "✅ ANTIGRAVITY_API_KEY secret is set (length: ${#ANTIGRAVITY_API_KEY})"
-          fi
-          
-          echo "Testing agy --help CLI options:"
-          agy --help || true
+          export AGY_PROMPT="Analyze GitHub Issue #${ISSUE_NUM}: ${ISSUE_TITLE}
 
-          export AGY_PROMPT="Resolve GitHub Issue #${ISSUE_NUM}: ${ISSUE_TITLE}
-
-          Issue Description:
+          Issue Details:
           ${ISSUE_BODY}
 
-          User Instructions (from @${COMMENT_AUTHOR}):
+          User Request from @${COMMENT_AUTHOR}:
           ${COMMENT_BODY}
 
-          Tasks:
-          1. Inspect the codebase and locate relevant files.
-          2. Implement the required bug fixes or feature changes.
-          3. Ensure all changes strictly maintain project quality standards."
+          Formulate a detailed implementation plan describing:
+          1. Root cause analysis.
+          2. Target files to modify or create.
+          3. Proposed changes step-by-step."
 
-          echo "🚀 Launching Antigravity Execution Runner..."
-          
           python3 -c '
           import os, pty, subprocess, sys, select
-          
           prompt = os.environ.get("AGY_PROMPT", "")
-          cmd = ["agy", "--prompt", prompt, "--non-interactive", "--yes"]
-          print(f"Executing command: {cmd}", flush=True)
-          
+          cmd = ["agy", "--prompt", prompt, "--mode", "plan"]
           master, slave = pty.openpty()
           try:
               proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=slave, stderr=slave, close_fds=True)
               os.close(slave)
-              
+              with open("proposed_plan.txt", "wb") as plan_file:
+                  while True:
+                      r, _, _ = select.select([master], [], [], 0.1)
+                      if master in r:
+                          try:
+                              data = os.read(master, 1024)
+                              if not data:
+                                  break
+                              sys.stdout.buffer.write(data)
+                              sys.stdout.buffer.flush()
+                              plan_file.write(data)
+                          except OSError:
+                              break
+                      if proc.poll() is not None:
+                          break
+              proc.wait()
+          except Exception as e:
+              print(f"Planning error: {e}")
+          '
+
+      - name: Post Proposed Plan to Issue Comment
+        if: "!startsWith(github.event.comment.body, '/approve')"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUM: ${{ github.event.issue.number }}
+        run: |
+          PLAN_CONTENT=$(cat proposed_plan.txt | sed 's/\x1b\[[0-9;]*m//g' || echo "Plan generated.")
+          
+          COMMENT_BODY=$(cat <<EOF
+          🤖 **Antigravity Proposed Implementation Plan**
+
+          ${PLAN_CONTENT}
+
+          ---
+          ✋ *To approve and execute this plan, reply to this issue with **\`/approve\`**.*
+          EOF
+          )
+          
+          gh issue comment "$ISSUE_NUM" --body "$COMMENT_BODY"
+
+      # -----------------------------------------------------------------
+      # PHASE 2: EXECUTION MODE (/approve)
+      # -----------------------------------------------------------------
+      - name: Fetch Latest Approved Plan from Issue History
+        if: "startsWith(github.event.comment.body, '/approve')"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUM: ${{ github.event.issue.number }}
+        run: |
+          # Fetch previous comments on this issue and extract the last Antigravity plan
+          LATEST_PLAN=$(gh api "repos/${{ github.repository }}/issues/${ISSUE_NUM}/comments" --jq '[.[] | select(.body | contains("Antigravity Proposed Implementation Plan"))] | last | .body' || echo "")
+          echo "APPROVED_PLAN<<EOF" >> $GITHUB_ENV
+          echo "$LATEST_PLAN" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Configure Git & Create Branch
+        if: "startsWith(github.event.comment.body, '/approve')"
+        id: branch
+        run: |
+          BRANCH_NAME="antigravity/issue-${{ github.event.issue.number }}-${{ github.run_id }}"
+          git config user.name "antigravity-bot[bot]"
+          git config user.email "antigravity-bot[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH_NAME"
+          echo "name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+      - name: Execute Approved Plan
+        if: "startsWith(github.event.comment.body, '/approve')"
+        env:
+          ANTIGRAVITY_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}
+          ISSUE_NUM: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          TERM: xterm-256color
+          CI: 'true'
+        run: |
+          export AGY_PROMPT="Execute the approved plan for GitHub Issue #${ISSUE_NUM}: ${ISSUE_TITLE}
+
+          Original Issue:
+          ${ISSUE_BODY}
+
+          Approved Implementation Plan:
+          ${APPROVED_PLAN}
+
+          Implement all changes and ensure project quality standards are met."
+
+          python3 -c '
+          import os, pty, subprocess, sys, select
+          prompt = os.environ.get("AGY_PROMPT", "")
+          cmd = ["agy", "--prompt", prompt, "--mode", "accept-edits", "--dangerously-skip-permissions"]
+          print("🚀 Executing Approved Plan...", flush=True)
+          master, slave = pty.openpty()
+          try:
+              proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=slave, stderr=slave, close_fds=True)
+              os.close(slave)
               while True:
                   r, _, _ = select.select([master], [], [], 0.1)
                   if master in r:
                       try:
                           data = os.read(master, 1024)
                           if not data:
-                              print("\n[PTY EOF Reached]", flush=True)
                               break
                           sys.stdout.buffer.write(data)
                           sys.stdout.buffer.flush()
-                      except OSError as err:
-                          print(f"\n[PTY Read Error: {err}]", flush=True)
+                      except OSError:
                           break
-                          
                   if proc.poll() is not None:
-                      print(f"\n[Process completed with exit code: {proc.poll()}]", flush=True)
-                      while True:
-                          r, _, _ = select.select([master], [], [], 0.05)
-                          if master in r:
-                              try:
-                                  data = os.read(master, 1024)
-                                  if not data:
-                                      break
-                                  sys.stdout.buffer.write(data)
-                                  sys.stdout.buffer.flush()
-                              except OSError:
-                                  break
-                          else:
-                              break
                       break
               proc.wait()
               sys.exit(proc.returncode)
           except Exception as e:
-              print(f"\n[Runner Exception: {e}]", flush=True)
+              print(f"Execution error: {e}")
               sys.exit(1)
           '
 
       - name: Run Tests & Verification
+        if: "startsWith(github.event.comment.body, '/approve')"
         run: |
           if grep -q '"test":' package.json; then
             npm test
@@ -172,6 +222,7 @@ jobs:
           fi
 
       - name: Create Pull Request
+        if: "startsWith(github.event.comment.body, '/approve')"
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -182,23 +233,20 @@ jobs:
 
             Resolves #${{ github.event.issue.number }}
 
-            ### Trigger Context
-            - **Triggered by:** @${{ github.event.comment.user.login }}
-            - **Instruction:**
-            > ${{ github.event.comment.body }}
-
+            ### Execution Context
+            - **Approved by:** @${{ github.event.comment.user.login }}
+            
             ---
             *Generated automatically by Antigravity CLI (`agy`). Please review and test before merging.*
           commit-message: "fix: automated resolution for issue #${{ github.event.issue.number }}"
           labels: |
             automated-pr
             antigravity
-          draft: false
 
-      - name: Confirm Execution in Issue Comment
-        if: success()
+      - name: Post PR Confirmation Comment
+        if: "startsWith(github.event.comment.body, '/approve') && success()"
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.issue.number }}
-          body: "✅ **Antigravity CLI** has finished implementing the changes and created a new Pull Request for review."
+          body: "🚀 **Antigravity CLI** has executed the approved plan and opened a Pull Request for review."
           reactions: rocket
