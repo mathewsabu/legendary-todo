@@ -87,22 +87,7 @@ jobs:
           2. Implement the required bug fixes or feature changes.
           3. Ensure all changes strictly maintain project quality standards."
 
-          AGY_BIN=""
-          if [ -x "$HOME/.antigravity/bin/agy" ]; then
-            AGY_BIN="$HOME/.antigravity/bin/agy"
-          elif command -v agy &>/dev/null; then
-            AGY_BIN="$(command -v agy)"
-          elif command -v antigravity &>/dev/null; then
-            AGY_BIN="$(command -v antigravity)"
-          fi
-
-          if [ -n "$AGY_BIN" ]; then
-            echo "Executing Antigravity CLI via binary: $AGY_BIN"
-            "$AGY_BIN" run --prompt "$PROMPT" --non-interactive
-          else
-            echo "Executing Antigravity CLI via Python module"
-            python3 -m google.antigravity run --prompt "$PROMPT" --non-interactive
-          fi
+          agy run --prompt "$PROMPT" --non-interactive
 
       - name: Run Tests & Verification
         run: |
