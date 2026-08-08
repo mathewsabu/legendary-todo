@@ -83,6 +83,22 @@ jobs:
           CI: 'true'
           PYTHONUNBUFFERED: '1'
         run: |
+          echo "=== 🔍 ANTIGRAVITY DEBUG DIAGNOSTICS ==="
+          echo "PATH: $PATH"
+          echo "Checking CLI binary locations:"
+          which agy || echo "agy not in PATH"
+          which antigravity || echo "antigravity not in PATH"
+          find $HOME -name "agy" -o -name "antigravity" 2>/dev/null || echo "No agy binary found in HOME"
+          
+          if [ -z "$ANTIGRAVITY_API_KEY" ]; then
+            echo "⚠️ WARNING: ANTIGRAVITY_API_KEY secret is EMPTY or NOT SET!"
+          else
+            echo "✅ ANTIGRAVITY_API_KEY secret is set (length: ${#ANTIGRAVITY_API_KEY})"
+          fi
+          
+          echo "Testing direct version check:"
+          agy --version || antigravity --version || echo "Version check failed"
+
           export AGY_PROMPT="Resolve GitHub Issue #${ISSUE_NUM}: ${ISSUE_TITLE}
 
           Issue Description:
@@ -96,28 +112,36 @@ jobs:
           2. Implement the required bug fixes or feature changes.
           3. Ensure all changes strictly maintain project quality standards."
 
+          echo "🚀 Launching Antigravity Execution Runner..."
+          
           python3 -c '
-          import os, pty, subprocess, sys, select
+          import os, pty, subprocess, sys, select, time
+          
           prompt = os.environ.get("AGY_PROMPT", "")
           cmd = ["agy", "run", "--prompt", prompt, "--non-interactive"]
-          print("🚀 Invoking Antigravity CLI...", flush=True)
+          print(f"Executing binary command: {cmd}", flush=True)
+          
           master, slave = pty.openpty()
           try:
               proc = subprocess.Popen(cmd, stdin=slave, stdout=slave, stderr=slave, close_fds=True)
               os.close(slave)
+              
               while True:
                   r, _, _ = select.select([master], [], [], 0.1)
                   if master in r:
                       try:
                           data = os.read(master, 1024)
                           if not data:
+                              print("\n[PTY EOF Reached]", flush=True)
                               break
                           sys.stdout.buffer.write(data)
                           sys.stdout.buffer.flush()
-                      except OSError:
+                      except OSError as err:
+                          print(f"\n[PTY Read Error: {err}]", flush=True)
                           break
+                          
                   if proc.poll() is not None:
-                      # Drain remaining bytes
+                      print(f"\n[Process completed with exit code: {proc.poll()}]", flush=True)
                       while True:
                           r, _, _ = select.select([master], [], [], 0.05)
                           if master in r:
@@ -135,7 +159,7 @@ jobs:
               proc.wait()
               sys.exit(proc.returncode)
           except Exception as e:
-              print(f"CLI Execution Error: {e}", flush=True)
+              print(f"\n[Runner Exception: {e}]", flush=True)
               sys.exit(1)
           '
 
