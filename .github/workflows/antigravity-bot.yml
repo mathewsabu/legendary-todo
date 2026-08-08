@@ -43,9 +43,14 @@ jobs:
         run: |
           npm ci || npm install
 
-      - name: Install Antigravity CLI
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Antigravity CLI (agy)
         run: |
-          npm install -g @google/antigravity-cli
+          pip install google-antigravity
 
       - name: Configure Git & Create Branch
         id: branch
