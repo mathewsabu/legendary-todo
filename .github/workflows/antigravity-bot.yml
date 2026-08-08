@@ -62,12 +62,12 @@ jobs:
           echo "$HOME/.antigravity/bin" >> $GITHUB_PATH
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: Authenticate Antigravity CLI with OAuth Code
-        env:
-          AUTH_CODE: ${{ secrets.ANTIGRAVITY_API_KEY }}
-        run: |
-          echo "Authenticating Antigravity CLI using OAuth authorization code..."
-          agy auth login --code "$AUTH_CODE" || echo "$AUTH_CODE" | agy auth login || true
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       # -----------------------------------------------------------------
       # PHASE 1: PLANNING MODE (/plan or /fix)
