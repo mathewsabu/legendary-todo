@@ -69,6 +69,24 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
+      - name: Link GCP Credentials to Antigravity CLI
+        run: |
+          mkdir -p ~/.gemini/antigravity-cli ~/.antigravity ~/.config/antigravity
+          if [ -n "$GOOGLE_APPLICATION_CREDENTIALS" ] && [ -f "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+            echo "Linking GCP ADC credentials ($GOOGLE_APPLICATION_CREDENTIALS) to Antigravity auth config..."
+            cp "$GOOGLE_APPLICATION_CREDENTIALS" ~/.gemini/antigravity-cli/auth.json
+            cp "$GOOGLE_APPLICATION_CREDENTIALS" ~/.antigravity/auth.json
+            cp "$GOOGLE_APPLICATION_CREDENTIALS" ~/.config/antigravity/auth.json
+            cat <<EOF > ~/.gemini/antigravity-cli/settings.json
+            {
+              "authProvider": "gcp",
+              "credentialsFile": "$GOOGLE_APPLICATION_CREDENTIALS"
+            }
+            EOF
+            cp ~/.gemini/antigravity-cli/settings.json ~/.antigravity/settings.json
+            chmod 600 ~/.gemini/antigravity-cli/* ~/.antigravity/* 2>/dev/null || true
+          fi
+
       # -----------------------------------------------------------------
       # PHASE 1: PLANNING MODE (/plan or /fix)
       # -----------------------------------------------------------------
@@ -106,7 +124,7 @@ jobs:
           cmd = ["agy", "--prompt", prompt, "--mode", "plan", "--dangerously-skip-permissions"]
           master, slave = pty.openpty()
           try:
-              proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=slave, stderr=slave, close_fds=True)
+              proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=slave, stderr=slave, env=os.environ.copy(), close_fds=True)
               os.close(slave)
               with open("proposed_plan.txt", "wb") as plan_file:
                   while True:
@@ -203,7 +221,7 @@ jobs:
           print("🚀 Executing Approved Plan...", flush=True)
           master, slave = pty.openpty()
           try:
-              proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=slave, stderr=slave, close_fds=True)
+              proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=slave, stderr=slave, env=os.environ.copy(), close_fds=True)
               os.close(slave)
               while True:
                   r, _, _ = select.select([master], [], [], 0.1)
