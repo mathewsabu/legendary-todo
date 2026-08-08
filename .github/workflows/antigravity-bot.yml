@@ -103,7 +103,7 @@ jobs:
           python3 -c '
           import os, pty, subprocess, sys, select
           prompt = os.environ.get("AGY_PROMPT", "")
-          cmd = ["agy", "--prompt", prompt, "--mode", "plan"]
+          cmd = ["agy", "--prompt", prompt, "--mode", "plan", "--dangerously-skip-permissions"]
           master, slave = pty.openpty()
           try:
               proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=slave, stderr=slave, close_fds=True)
