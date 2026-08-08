@@ -73,8 +73,15 @@ jobs:
         run: |
           mkdir -p ~/.gemini/antigravity-cli ~/.antigravity ~/.config/antigravity
           
+          # Activate GCP ADC credentials in gcloud CLI
+          if [ -n "$GOOGLE_APPLICATION_CREDENTIALS" ] && [ -f "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+            echo "Activating GCP ADC credentials in gcloud..."
+            gcloud auth login --cred-file="$GOOGLE_APPLICATION_CREDENTIALS" || true
+          fi
+
           # Mint GCP Access Token from Workload Identity Federation ADC
           TOKEN=$(gcloud auth print-access-token 2>/dev/null || echo "")
+          echo "Generated Access Token length: ${#TOKEN}"
           
           if [ -n "$TOKEN" ]; then
             echo "✅ Successfully generated GCP Access Token from Workload Identity Federation."
