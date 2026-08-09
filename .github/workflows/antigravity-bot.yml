@@ -20,6 +20,7 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
+      id-token: write
 
     steps:
       - name: React to Comment (Acknowledge)
@@ -44,27 +45,21 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Authenticate to Google Cloud (Workload Identity)
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
       - name: Install Project Dependencies & Antigravity SDK
         run: |
           npm ci || npm install
           pip install google-antigravity
 
-      - name: Configure Cached Auth & Scoped Permissions
-        env:
-          CACHED_AUTH: ${{ secrets.ANTIGRAVITY_AUTH_JSON || secrets.ANTIGRAVITY_API_KEY }}
+      - name: Configure Scoped Permissions
         run: |
           mkdir -p ~/.gemini/antigravity-cli ~/.antigravity ~/.config/antigravity
-          
-          if [ -n "$CACHED_AUTH" ]; then
-            echo "Writing cached oauth_creds.json & auth.json to credential locations..."
-            echo "$CACHED_AUTH" > ~/.gemini/oauth_creds.json
-            echo "$CACHED_AUTH" > ~/.gemini/antigravity-cli/oauth_creds.json
-            echo "$CACHED_AUTH" > ~/.gemini/antigravity-cli/auth.json
-            echo "$CACHED_AUTH" > ~/.antigravity/oauth_creds.json
-            echo "$CACHED_AUTH" > ~/.antigravity/auth.json
-            echo "$CACHED_AUTH" > ~/.config/antigravity/oauth_creds.json
-            echo "$CACHED_AUTH" > ~/.config/antigravity/auth.json
-          fi
 
           echo "Configuring CI execution permissions in settings.json..."
           cat <<'EOF' > ~/.gemini/antigravity-cli/settings.json
@@ -95,6 +90,10 @@ jobs:
       - name: Generate Implementation Plan (via Antigravity SDK)
         if: "!startsWith(github.event.comment.body, '/approve')"
         env:
+          GOOGLE_CLOUD_PROJECT: ${{ steps.auth.outputs.project_id }}
+          GCP_PROJECT: ${{ steps.auth.outputs.project_id }}
+          GOOGLE_GENAI_USE_VERTEXAI: 'true'
+          GOOGLE_CLOUD_LOCATION: 'us-central1'
           ISSUE_NUM: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
@@ -121,8 +120,13 @@ jobs:
 
           async def main():
               prompt = os.environ.get("AGY_PROMPT", "")
-              print("🚀 Initializing Antigravity SDK Agent (Mode: PLAN)...", flush=True)
+              project_id = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
+              location = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
+              print(f"🚀 Initializing Antigravity SDK Agent via Workload Identity (Project: {project_id}, Mode: PLAN)...", flush=True)
               config = LocalAgentConfig(
+                  vertex=True,
+                  project=project_id,
+                  location=location,
                   mode=Mode.PLAN,
                   capabilities=CapabilitiesConfig()
               )
@@ -186,6 +190,10 @@ jobs:
       - name: Execute Approved Plan (via Antigravity SDK)
         if: "startsWith(github.event.comment.body, '/approve')"
         env:
+          GOOGLE_CLOUD_PROJECT: ${{ steps.auth.outputs.project_id }}
+          GCP_PROJECT: ${{ steps.auth.outputs.project_id }}
+          GOOGLE_GENAI_USE_VERTEXAI: 'true'
+          GOOGLE_CLOUD_LOCATION: 'us-central1'
           ISSUE_NUM: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
@@ -207,8 +215,13 @@ jobs:
 
           async def main():
               prompt = os.environ.get("AGY_PROMPT", "")
-              print("🚀 Initializing Antigravity SDK Agent (Mode: ACCEPT_EDITS)...", flush=True)
+              project_id = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
+              location = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
+              print(f"🚀 Initializing Antigravity SDK Agent via Workload Identity (Project: {project_id}, Mode: ACCEPT_EDITS)...", flush=True)
               config = LocalAgentConfig(
+                  vertex=True,
+                  project=project_id,
+                  location=location,
                   mode=Mode.ACCEPT_EDITS,
                   capabilities=CapabilitiesConfig()
               )
