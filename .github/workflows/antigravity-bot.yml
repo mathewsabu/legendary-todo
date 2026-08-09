@@ -71,6 +71,14 @@ jobs:
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
           token_format: 'access_token'
 
+      - name: Initialize D-Bus & Secret Service Keyring
+        run: |
+          sudo apt-get update && sudo apt-get install -y dbus-x11 gnome-keyring libsecret-tools
+          eval $(dbus-launch --sh-syntax)
+          echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS" >> $GITHUB_ENV
+          echo "DBUS_SESSION_BUS_PID=$DBUS_SESSION_BUS_PID" >> $GITHUB_ENV
+          echo -n "ci-keyring-pass" | gnome-keyring-daemon --unlock --components=secrets || true
+
       - name: Link GCP Credentials to Antigravity CLI
         env:
           GCP_TOKEN: ${{ steps.auth.outputs.access_token }}
@@ -86,6 +94,13 @@ jobs:
             
             echo "{\"authProvider\": \"gcp\", \"project\": \"${GCP_PROJECT_ID}\", \"location\": \"us-central1\"}" > ~/.gemini/antigravity-cli/settings.json
             cp ~/.gemini/antigravity-cli/settings.json ~/.antigravity/settings.json
+
+            # Store access token into Linux Secret Service (GNOME Keyring) for agy libsecret lookup
+            if command -v secret-tool &>/dev/null; then
+              echo "Storing access token into GNOME Keyring Secret Service..."
+              echo -n "$GCP_TOKEN" | secret-tool store --label="Antigravity Token" service antigravity username default || true
+              echo -n "$GCP_TOKEN" | secret-tool store --label="Antigravity CLI" service agy username default || true
+            fi
           fi
           
           chmod 600 ~/.gemini/antigravity-cli/* ~/.antigravity/* 2>/dev/null || true
