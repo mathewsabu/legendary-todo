@@ -97,8 +97,8 @@ jobs:
           }
           EOF
           cp ~/.gemini/antigravity-cli/settings.json ~/.antigravity/settings.json
-          cp ~/.gemini/antigravity-cli/settings.json ~/.gemini/settings.json
-          chmod 600 ~/.gemini/* ~/.gemini/antigravity-cli/* ~/.antigravity/* 2>/dev/null || true
+          find ~/.gemini ~/.antigravity ~/.config/antigravity -type d -exec chmod 755 {} + 2>/dev/null || true
+          find ~/.gemini ~/.antigravity ~/.config/antigravity -type f -exec chmod 600 {} + 2>/dev/null || true
 
       # -----------------------------------------------------------------
       # PHASE 1: PLANNING MODE (/plan or /fix)
