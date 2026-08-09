@@ -65,7 +65,7 @@ jobs:
 
       - name: Configure Cached Auth & Scoped Permissions
         env:
-          CACHED_AUTH: ${{ secrets.ANTIGRAVITY_API_KEY }}
+          CACHED_AUTH: ${{ secrets.ANTIGRAVITY_AUTH_JSON || secrets.ANTIGRAVITY_API_KEY }}
         run: |
           mkdir -p ~/.gemini/antigravity-cli ~/.antigravity ~/.config/antigravity
           
