@@ -70,10 +70,14 @@ jobs:
           mkdir -p ~/.gemini/antigravity-cli ~/.antigravity ~/.config/antigravity
           
           if [ -n "$CACHED_AUTH" ]; then
-            echo "Writing cached authentication credentials to auth config..."
+            echo "Writing cached oauth_creds.json & auth.json to credential locations..."
+            echo "$CACHED_AUTH" > ~/.gemini/oauth_creds.json
+            echo "$CACHED_AUTH" > ~/.gemini/antigravity-cli/oauth_creds.json
             echo "$CACHED_AUTH" > ~/.gemini/antigravity-cli/auth.json
-            cp ~/.gemini/antigravity-cli/auth.json ~/.antigravity/auth.json
-            cp ~/.gemini/antigravity-cli/auth.json ~/.config/antigravity/auth.json
+            echo "$CACHED_AUTH" > ~/.antigravity/oauth_creds.json
+            echo "$CACHED_AUTH" > ~/.antigravity/auth.json
+            echo "$CACHED_AUTH" > ~/.config/antigravity/oauth_creds.json
+            echo "$CACHED_AUTH" > ~/.config/antigravity/auth.json
           fi
 
           echo "Configuring CI execution permissions in settings.json..."
@@ -93,7 +97,8 @@ jobs:
           }
           EOF
           cp ~/.gemini/antigravity-cli/settings.json ~/.antigravity/settings.json
-          chmod 600 ~/.gemini/antigravity-cli/* ~/.antigravity/* 2>/dev/null || true
+          cp ~/.gemini/antigravity-cli/settings.json ~/.gemini/settings.json
+          chmod 600 ~/.gemini/* ~/.gemini/antigravity-cli/* ~/.antigravity/* 2>/dev/null || true
 
       # -----------------------------------------------------------------
       # PHASE 1: PLANNING MODE (/plan or /fix)
