@@ -116,19 +116,18 @@ jobs:
 
           python3 -c '
           import asyncio, os, sys
-          from google.antigravity import Agent, LocalAgentConfig, CapabilitiesConfig, Mode
+          from google.antigravity import Agent, LocalAgentConfig
 
           async def main():
               prompt = os.environ.get("AGY_PROMPT", "")
               project_id = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
               location = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
-              print(f"🚀 Initializing Antigravity SDK Agent via Workload Identity (Project: {project_id}, Mode: PLAN)...", flush=True)
+              print(f"🚀 Initializing Antigravity SDK Agent via Workload Identity (Project: {project_id}, Read-Only Planning)...", flush=True)
               config = LocalAgentConfig(
                   vertex=True,
                   project=project_id,
                   location=location,
-                  mode=Mode.PLAN,
-                  capabilities=CapabilitiesConfig()
+                  system_instructions="Formulate a detailed implementation plan only. Do not make edits."
               )
               async with Agent(config) as agent:
                   response = await agent.chat(prompt)
@@ -211,18 +210,17 @@ jobs:
 
           python3 -c '
           import asyncio, os, sys
-          from google.antigravity import Agent, LocalAgentConfig, CapabilitiesConfig, Mode
+          from google.antigravity import Agent, LocalAgentConfig, CapabilitiesConfig
 
           async def main():
               prompt = os.environ.get("AGY_PROMPT", "")
               project_id = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
               location = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
-              print(f"🚀 Initializing Antigravity SDK Agent via Workload Identity (Project: {project_id}, Mode: ACCEPT_EDITS)...", flush=True)
+              print(f"🚀 Initializing Antigravity SDK Agent via Workload Identity (Project: {project_id}, Write Execution)...", flush=True)
               config = LocalAgentConfig(
                   vertex=True,
                   project=project_id,
                   location=location,
-                  mode=Mode.ACCEPT_EDITS,
                   capabilities=CapabilitiesConfig()
               )
               async with Agent(config) as agent:
