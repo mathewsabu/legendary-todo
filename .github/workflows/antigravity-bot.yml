@@ -69,15 +69,25 @@ jobs:
         run: |
           mkdir -p ~/.gemini/antigravity-cli ~/.antigravity ~/.config/antigravity
           
-          if [ -n "$CACHED_AUTH" ]; then
-            echo "Writing cached oauth_creds.json & auth.json to credential locations..."
-            echo "$CACHED_AUTH" > ~/.gemini/oauth_creds.json
-            echo "$CACHED_AUTH" > ~/.gemini/antigravity-cli/oauth_creds.json
-            echo "$CACHED_AUTH" > ~/.gemini/antigravity-cli/auth.json
-            echo "$CACHED_AUTH" > ~/.antigravity/oauth_creds.json
-            echo "$CACHED_AUTH" > ~/.antigravity/auth.json
-            echo "$CACHED_AUTH" > ~/.config/antigravity/oauth_creds.json
-            echo "$CACHED_AUTH" > ~/.config/antigravity/auth.json
+          echo "=== 🔍 CACHED AUTH DIAGNOSTICS ==="
+          echo "CACHED_AUTH secret length: ${#CACHED_AUTH}"
+          
+          if [ -z "$CACHED_AUTH" ]; then
+            echo "⚠️ WARNING: ANTIGRAVITY_AUTH_JSON and ANTIGRAVITY_API_KEY secrets are both EMPTY!"
+          else
+            echo "Validating JSON format..."
+            if python3 -c "import json, sys; json.loads(sys.stdin.read()); print('✅ JSON is valid')" <<< "$CACHED_AUTH"; then
+              echo "Writing cached auth files..."
+              echo "$CACHED_AUTH" > ~/.gemini/oauth_creds.json
+              echo "$CACHED_AUTH" > ~/.gemini/antigravity-cli/oauth_creds.json
+              echo "$CACHED_AUTH" > ~/.gemini/antigravity-cli/auth.json
+              echo "$CACHED_AUTH" > ~/.antigravity/oauth_creds.json
+              echo "$CACHED_AUTH" > ~/.antigravity/auth.json
+              echo "$CACHED_AUTH" > ~/.config/antigravity/oauth_creds.json
+              echo "$CACHED_AUTH" > ~/.config/antigravity/auth.json
+            else
+              echo "❌ ERROR: CACHED_AUTH secret is NOT valid JSON! Please check the secret value in GitHub repository settings."
+            fi
           fi
 
           echo "Configuring CI execution permissions in settings.json..."
@@ -98,6 +108,11 @@ jobs:
           }
           EOF
           cp ~/.gemini/antigravity-cli/settings.json ~/.antigravity/settings.json
+          cp ~/.gemini/antigravity-cli/settings.json ~/.gemini/settings.json
+          
+          echo "Listing configuration directories:"
+          ls -la ~/.gemini ~/.gemini/antigravity-cli ~/.antigravity 2>/dev/null || true
+          
           find ~/.gemini ~/.antigravity ~/.config/antigravity -type d -exec chmod 755 {} + 2>/dev/null || true
           find ~/.gemini ~/.antigravity ~/.config/antigravity -type f -exec chmod 600 {} + 2>/dev/null || true
 
