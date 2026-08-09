@@ -20,7 +20,6 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
-      id-token: write
 
     steps:
       - name: React to Comment (Acknowledge)
@@ -40,28 +39,15 @@ jobs:
           node-version: '24'
           cache: 'npm'
 
-      - name: Install Project Dependencies
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Project Dependencies & Antigravity SDK
         run: |
           npm ci || npm install
-
-      - name: Cache Antigravity CLI
-        id: cache-antigravity
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.antigravity
-            ~/.local/bin
-          key: ${{ runner.os }}-antigravity-cli-v1
-
-      - name: Install Antigravity CLI
-        if: steps.cache-antigravity.outputs.cache-hit != 'true'
-        run: |
-          curl -fsSL https://antigravity.google/cli/install.sh | bash
-
-      - name: Add Antigravity to PATH
-        run: |
-          echo "$HOME/.antigravity/bin" >> $GITHUB_PATH
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          pip install google-antigravity
 
       - name: Configure Cached Auth & Scoped Permissions
         env:
@@ -69,25 +55,15 @@ jobs:
         run: |
           mkdir -p ~/.gemini/antigravity-cli ~/.antigravity ~/.config/antigravity
           
-          echo "=== 🔍 CACHED AUTH DIAGNOSTICS ==="
-          echo "CACHED_AUTH secret length: ${#CACHED_AUTH}"
-          
-          if [ -z "$CACHED_AUTH" ]; then
-            echo "⚠️ WARNING: ANTIGRAVITY_AUTH_JSON and ANTIGRAVITY_API_KEY secrets are both EMPTY!"
-          else
-            echo "Validating JSON format..."
-            if python3 -c "import json, sys; json.loads(sys.stdin.read()); print('✅ JSON is valid')" <<< "$CACHED_AUTH"; then
-              echo "Writing cached auth files..."
-              echo "$CACHED_AUTH" > ~/.gemini/oauth_creds.json
-              echo "$CACHED_AUTH" > ~/.gemini/antigravity-cli/oauth_creds.json
-              echo "$CACHED_AUTH" > ~/.gemini/antigravity-cli/auth.json
-              echo "$CACHED_AUTH" > ~/.antigravity/oauth_creds.json
-              echo "$CACHED_AUTH" > ~/.antigravity/auth.json
-              echo "$CACHED_AUTH" > ~/.config/antigravity/oauth_creds.json
-              echo "$CACHED_AUTH" > ~/.config/antigravity/auth.json
-            else
-              echo "❌ ERROR: CACHED_AUTH secret is NOT valid JSON! Please check the secret value in GitHub repository settings."
-            fi
+          if [ -n "$CACHED_AUTH" ]; then
+            echo "Writing cached oauth_creds.json & auth.json to credential locations..."
+            echo "$CACHED_AUTH" > ~/.gemini/oauth_creds.json
+            echo "$CACHED_AUTH" > ~/.gemini/antigravity-cli/oauth_creds.json
+            echo "$CACHED_AUTH" > ~/.gemini/antigravity-cli/auth.json
+            echo "$CACHED_AUTH" > ~/.antigravity/oauth_creds.json
+            echo "$CACHED_AUTH" > ~/.antigravity/auth.json
+            echo "$CACHED_AUTH" > ~/.config/antigravity/oauth_creds.json
+            echo "$CACHED_AUTH" > ~/.config/antigravity/auth.json
           fi
 
           echo "Configuring CI execution permissions in settings.json..."
@@ -110,16 +86,13 @@ jobs:
           cp ~/.gemini/antigravity-cli/settings.json ~/.antigravity/settings.json
           cp ~/.gemini/antigravity-cli/settings.json ~/.gemini/settings.json
           
-          echo "Listing configuration directories:"
-          ls -la ~/.gemini ~/.gemini/antigravity-cli ~/.antigravity 2>/dev/null || true
-          
           find ~/.gemini ~/.antigravity ~/.config/antigravity -type d -exec chmod 755 {} + 2>/dev/null || true
           find ~/.gemini ~/.antigravity ~/.config/antigravity -type f -exec chmod 600 {} + 2>/dev/null || true
 
       # -----------------------------------------------------------------
       # PHASE 1: PLANNING MODE (/plan or /fix)
       # -----------------------------------------------------------------
-      - name: Generate Implementation Plan
+      - name: Generate Implementation Plan (via Antigravity SDK)
         if: "!startsWith(github.event.comment.body, '/approve')"
         env:
           ISSUE_NUM: ${{ github.event.issue.number }}
@@ -127,8 +100,7 @@ jobs:
           ISSUE_BODY: ${{ github.event.issue.body }}
           COMMENT_BODY: ${{ github.event.comment.body }}
           COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
-          TERM: xterm-256color
-          CI: 'true'
+          PYTHONUNBUFFERED: '1'
         run: |
           export AGY_PROMPT="Analyze GitHub Issue #${ISSUE_NUM}: ${ISSUE_TITLE}
 
@@ -144,31 +116,26 @@ jobs:
           3. Proposed changes step-by-step."
 
           python3 -c '
-          import os, pty, subprocess, sys, select
-          prompt = os.environ.get("AGY_PROMPT", "")
-          cmd = ["agy", "--prompt", prompt, "--mode", "plan", "--dangerously-skip-permissions"]
-          master, slave = pty.openpty()
-          try:
-              proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=slave, stderr=slave, env=os.environ.copy(), close_fds=True)
-              os.close(slave)
-              with open("proposed_plan.txt", "wb") as plan_file:
-                  while True:
-                      r, _, _ = select.select([master], [], [], 0.1)
-                      if master in r:
-                          try:
-                              data = os.read(master, 1024)
-                              if not data:
-                                  break
-                              sys.stdout.buffer.write(data)
-                              sys.stdout.buffer.flush()
-                              plan_file.write(data)
-                          except OSError:
-                              break
-                      if proc.poll() is not None:
-                          break
-              proc.wait()
-          except Exception as e:
-              print(f"Planning error: {e}")
+          import asyncio, os, sys
+          from google.antigravity import Agent, LocalAgentConfig, CapabilitiesConfig, Mode
+
+          async def main():
+              prompt = os.environ.get("AGY_PROMPT", "")
+              print("🚀 Initializing Antigravity SDK Agent (Mode: PLAN)...", flush=True)
+              config = LocalAgentConfig(
+                  mode=Mode.PLAN,
+                  capabilities=CapabilitiesConfig()
+              )
+              async with Agent(config) as agent:
+                  response = await agent.chat(prompt)
+                  with open("proposed_plan.txt", "w") as plan_file:
+                      async for token in response:
+                          sys.stdout.write(token)
+                          sys.stdout.flush()
+                          plan_file.write(token)
+              print("\n✅ Plan generation complete.", flush=True)
+
+          asyncio.run(main())
           '
 
       - name: Post Proposed Plan to Issue Comment
@@ -216,14 +183,13 @@ jobs:
           git checkout -b "$BRANCH_NAME"
           echo "name=$BRANCH_NAME" >> $GITHUB_OUTPUT
 
-      - name: Execute Approved Plan
+      - name: Execute Approved Plan (via Antigravity SDK)
         if: "startsWith(github.event.comment.body, '/approve')"
         env:
           ISSUE_NUM: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
-          TERM: xterm-256color
-          CI: 'true'
+          PYTHONUNBUFFERED: '1'
         run: |
           export AGY_PROMPT="Execute the approved plan for GitHub Issue #${ISSUE_NUM}: ${ISSUE_TITLE}
 
@@ -236,32 +202,24 @@ jobs:
           Implement all changes and ensure project quality standards are met."
 
           python3 -c '
-          import os, pty, subprocess, sys, select
-          prompt = os.environ.get("AGY_PROMPT", "")
-          cmd = ["agy", "--prompt", prompt, "--mode", "accept-edits", "--dangerously-skip-permissions"]
-          print("🚀 Executing Approved Plan...", flush=True)
-          master, slave = pty.openpty()
-          try:
-              proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=slave, stderr=slave, env=os.environ.copy(), close_fds=True)
-              os.close(slave)
-              while True:
-                  r, _, _ = select.select([master], [], [], 0.1)
-                  if master in r:
-                      try:
-                          data = os.read(master, 1024)
-                          if not data:
-                              break
-                          sys.stdout.buffer.write(data)
-                          sys.stdout.buffer.flush()
-                      except OSError:
-                          break
-                  if proc.poll() is not None:
-                      break
-              proc.wait()
-              sys.exit(proc.returncode)
-          except Exception as e:
-              print(f"Execution error: {e}")
-              sys.exit(1)
+          import asyncio, os, sys
+          from google.antigravity import Agent, LocalAgentConfig, CapabilitiesConfig, Mode
+
+          async def main():
+              prompt = os.environ.get("AGY_PROMPT", "")
+              print("🚀 Initializing Antigravity SDK Agent (Mode: ACCEPT_EDITS)...", flush=True)
+              config = LocalAgentConfig(
+                  mode=Mode.ACCEPT_EDITS,
+                  capabilities=CapabilitiesConfig()
+              )
+              async with Agent(config) as agent:
+                  response = await agent.chat(prompt)
+                  async for token in response:
+                      sys.stdout.write(token)
+                      sys.stdout.flush()
+              print("\n✅ Plan execution complete.", flush=True)
+
+          asyncio.run(main())
           '
 
       - name: Run Tests & Verification
@@ -289,7 +247,7 @@ jobs:
             - **Approved by:** @${{ github.event.comment.user.login }}
             
             ---
-            *Generated automatically by Antigravity CLI (`agy`). Please review and test before merging.*
+            *Generated automatically by Antigravity Python SDK. Please review and test before merging.*
           commit-message: "fix: automated resolution for issue #${{ github.event.issue.number }}"
           labels: |
             automated-pr
@@ -300,5 +258,5 @@ jobs:
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.issue.number }}
-          body: "🚀 **Antigravity CLI** has executed the approved plan and opened a Pull Request for review."
+          body: "🚀 **Antigravity SDK** has executed the approved plan and opened a Pull Request for review."
           reactions: rocket
