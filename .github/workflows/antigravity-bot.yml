@@ -74,14 +74,18 @@ jobs:
       - name: Link GCP Credentials to Antigravity CLI
         env:
           GCP_TOKEN: ${{ steps.auth.outputs.access_token }}
+          GCP_PROJECT_ID: ${{ steps.auth.outputs.project_id }}
         run: |
           mkdir -p ~/.gemini/antigravity-cli ~/.antigravity ~/.config/antigravity
           
           if [ -n "$GCP_TOKEN" ]; then
-            echo "✅ Received GCP Access Token from Workload Identity Federation (length: ${#GCP_TOKEN})."
+            echo "✅ Received GCP Access Token (length: ${#GCP_TOKEN}) for Project: $GCP_PROJECT_ID"
             echo "{\"access_token\": \"${GCP_TOKEN}\", \"token_type\": \"Bearer\"}" > ~/.gemini/antigravity-cli/auth.json
             cp ~/.gemini/antigravity-cli/auth.json ~/.antigravity/auth.json
             cp ~/.gemini/antigravity-cli/auth.json ~/.config/antigravity/auth.json
+            
+            echo "{\"authProvider\": \"gcp\", \"project\": \"${GCP_PROJECT_ID}\", \"location\": \"us-central1\"}" > ~/.gemini/antigravity-cli/settings.json
+            cp ~/.gemini/antigravity-cli/settings.json ~/.antigravity/settings.json
           fi
           
           chmod 600 ~/.gemini/antigravity-cli/* ~/.antigravity/* 2>/dev/null || true
@@ -96,6 +100,10 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}
           GOOGLE_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}
           VERTEX_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}
+          GOOGLE_CLOUD_PROJECT: ${{ steps.auth.outputs.project_id }}
+          GCP_PROJECT: ${{ steps.auth.outputs.project_id }}
+          GOOGLE_GENAI_USE_VERTEXAI: 'true'
+          CLOUDSDK_AUTH_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
           ISSUE_NUM: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
@@ -120,7 +128,10 @@ jobs:
           python3 -c '
           import os, pty, subprocess, sys, select
           prompt = os.environ.get("AGY_PROMPT", "")
+          project_id = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
           cmd = ["agy", "--prompt", prompt, "--mode", "plan", "--dangerously-skip-permissions"]
+          if project_id:
+              cmd.extend(["--project", project_id])
           master, slave = pty.openpty()
           try:
               proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=slave, stderr=slave, env=os.environ.copy(), close_fds=True)
@@ -197,6 +208,10 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}
           GOOGLE_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}
           VERTEX_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}
+          GOOGLE_CLOUD_PROJECT: ${{ steps.auth.outputs.project_id }}
+          GCP_PROJECT: ${{ steps.auth.outputs.project_id }}
+          GOOGLE_GENAI_USE_VERTEXAI: 'true'
+          CLOUDSDK_AUTH_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
           ISSUE_NUM: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
@@ -216,7 +231,10 @@ jobs:
           python3 -c '
           import os, pty, subprocess, sys, select
           prompt = os.environ.get("AGY_PROMPT", "")
+          project_id = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
           cmd = ["agy", "--prompt", prompt, "--mode", "accept-edits", "--dangerously-skip-permissions"]
+          if project_id:
+              cmd.extend(["--project", project_id])
           print("🚀 Executing Approved Plan...", flush=True)
           master, slave = pty.openpty()
           try:
