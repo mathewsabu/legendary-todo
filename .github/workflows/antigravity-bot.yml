@@ -97,6 +97,8 @@ jobs:
       - name: Generate Implementation Plan (via Personal Gemini Pro)
         if: "!startsWith(github.event.comment.body, '/approve')"
         env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY || secrets.ANTIGRAVITY_API_KEY }}
+          ANTIGRAVITY_API_KEY: ${{ secrets.GEMINI_API_KEY || secrets.ANTIGRAVITY_API_KEY }}
           ISSUE_NUM: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
@@ -123,9 +125,11 @@ jobs:
 
           async def main():
               prompt = os.environ.get("AGY_PROMPT", "")
-              print("🚀 Initializing Antigravity SDK Agent via Personal Gemini Pro (Read-Only Planning)...", flush=True)
+              api_key = os.environ.get("GEMINI_API_KEY", "")
+              print("🚀 Initializing Antigravity SDK Agent via Gemini Pro API Key (Read-Only Planning)...", flush=True)
               config = LocalAgentConfig(
                   vertex=False,
+                  api_key=api_key if api_key else None,
                   system_instructions="Formulate a detailed implementation plan only. Do not make edits."
               )
               async with Agent(config) as agent:
@@ -188,6 +192,8 @@ jobs:
       - name: Execute Approved Plan (via Personal Gemini Pro)
         if: "startsWith(github.event.comment.body, '/approve')"
         env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY || secrets.ANTIGRAVITY_API_KEY }}
+          ANTIGRAVITY_API_KEY: ${{ secrets.GEMINI_API_KEY || secrets.ANTIGRAVITY_API_KEY }}
           ISSUE_NUM: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
@@ -209,9 +215,11 @@ jobs:
 
           async def main():
               prompt = os.environ.get("AGY_PROMPT", "")
-              print("🚀 Initializing Antigravity SDK Agent via Personal Gemini Pro (Write Execution)...", flush=True)
+              api_key = os.environ.get("GEMINI_API_KEY", "")
+              print("🚀 Initializing Antigravity SDK Agent via Gemini Pro API Key (Write Execution)...", flush=True)
               config = LocalAgentConfig(
                   vertex=False,
+                  api_key=api_key if api_key else None,
                   capabilities=CapabilitiesConfig()
               )
               async with Agent(config) as agent:
