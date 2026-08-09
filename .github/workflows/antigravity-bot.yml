@@ -85,6 +85,7 @@ jobs:
           {
             "permissions": {
               "allow": [
+                "*",
                 "command(*)",
                 "read_file(*)",
                 "write_file(*)",
@@ -130,7 +131,7 @@ jobs:
           python3 -c '
           import os, pty, subprocess, sys, select
           prompt = os.environ.get("AGY_PROMPT", "")
-          cmd = ["agy", "--prompt", prompt, "--mode", "plan"]
+          cmd = ["agy", "--prompt", prompt, "--mode", "plan", "--dangerously-skip-permissions"]
           master, slave = pty.openpty()
           try:
               proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=slave, stderr=slave, env=os.environ.copy(), close_fds=True)
@@ -222,7 +223,7 @@ jobs:
           python3 -c '
           import os, pty, subprocess, sys, select
           prompt = os.environ.get("AGY_PROMPT", "")
-          cmd = ["agy", "--prompt", prompt, "--mode", "accept-edits"]
+          cmd = ["agy", "--prompt", prompt, "--mode", "accept-edits", "--dangerously-skip-permissions"]
           print("🚀 Executing Approved Plan...", flush=True)
           master, slave = pty.openpty()
           try:
